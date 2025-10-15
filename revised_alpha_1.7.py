@@ -12,6 +12,11 @@ import pandas as pd
 
 file = ROOT.TFile.Open("/Users/jerry/Desktop/root/Root file/latest_data/Another New Upload Folder for Mehreen 10 March-selected/texp_CVOnly_MC.root")
 file1 = ROOT.TFile.Open("/Users/jerry/Desktop/root/Root file/latest_data/Another New Upload Folder for Mehreen 10 March-selected/texp_CVOnly_Data.root")
+version = input("Enter version number: ")
+folder_name = f"{datetime.today().strftime('%Y-%m-%d')}_Ver{version}"
+base_directory = Path('/Users/jerry/Desktop/root/Root file/results_by_date') 
+new_folder = base_directory / folder_name
+new_folder.mkdir(parents=True, exist_ok=True)
 chi_square_values = []
 # This is the bins that will be used to extract data
 custom_bins = np.array([0.000, 0.01, 0.020, 0.030, 0.045, 0.06, 0.080, 0.10, 0.125, 0.15, 
@@ -362,6 +367,11 @@ def extract_migration():
                     normalized_migration.append(data/data_total_value)
             normalized_migration = normalized_migration[:-2]
             migration_matrix_2[:, i_bin_1-1, avaE] = normalized_migration
+        #combine the six by six migration matrix into a five by five migration matrix
+        migration_matrix_2[1,:,avaE] = migration_matrix_2[0, :, avaE] + migration_matrix_2[1,:,avaE]
+        migration_matrix_2[0,:,avaE] = [0,0,0,0,0,0]
+        migration_matrix_2[:,1,avaE] = migration_matrix_2[:, 0, avaE] + migration_matrix_2[:, 1, avaE]
+        migration_matrix_2[:,0,avaE] = [0,0,0,0,0,0]
     return
 
 
@@ -390,6 +400,10 @@ def calculate_chi_square(inputed_parameters):
             #It extracts the last six terms of the param list, which is the six phi values.
             global phi_values
             phi_values = inputed_parameters[-6:]
+
+            #we here also combine the phi values
+            phi_values[1] = phi_values[0] + phi_values[1]
+            phi_values[0] = 0
             #Here we extract the correct slice from the histograms, which corresponds to the different Tpion energies.
             y_bin_min = hist_slice
             y_bin_max = hist_slice
@@ -544,7 +558,10 @@ def calculate_chi_square(inputed_parameters):
             results[hist_slice][avaE]["bkg2"] = background2_data_list
             results[hist_slice][avaE]["combined_bkg"] = extrabackground_data_list
             results[hist_slice][avaE]["data"] = real_data_list
-        #here it should be outside the i loop but still in the j loop 
+        #here it should be outside the i loop but still in the j loop
+    for avaE in range(0,4):
+        Coh_matrix[1,:,avaE] = Coh_matrix[0,:, avaE] + Coh_matrix[1,:, avaE]
+        Coh_matrix[0,:,avaE] = 0
     
 
 
@@ -631,8 +648,8 @@ def calculate_chi_square(inputed_parameters):
 
     # sheet1 = sheet1.round(6)
     # sheet2 = sheet2.round(6)
-
-    with pd.ExcelWriter("debug_matrices.xlsx", engine="xlsxwriter") as xl:
+    out_path = new_folder / "debug_matrices.xlsx"
+    with pd.ExcelWriter(out_path , engine="xlsxwriter") as xl:
         sheet1.to_excel(xl, index=False, sheet_name="Cijk_Tmjk_trueCoh")
         sheet2.to_excel(xl, index=False, sheet_name="Migration")
 
@@ -655,7 +672,7 @@ def calculate_chi_square(inputed_parameters):
     
     return total_chi_square
 
-version = input("Enter version number: ")
+# version = input("Enter version number: ")
 #param_names = list(inspect.signature(calculate_chi_square).parameters.keys())
 #param_names = [f"x{i}" for i in range(len(params))]
 #start_dict = dict(zip(param_names, params))
@@ -671,7 +688,7 @@ version = input("Enter version number: ")
 initial = params[0] if isinstance(params[0], (list, np.ndarray)) else params
 extract_migration()
 result = Minuit(chi2_barrier, *initial)  
-result.migrad(ncall=10000)
+result.migrad(ncall=50)
 #ncall=50
 optimized_params = result.values
 optimized_params_list = [optimized_params[f"x{i}"] for i in range (len(optimized_params))]
@@ -1065,10 +1082,10 @@ for hist_slice in range(1,7):
 
         
 
-        folder_name = f"{datetime.today().strftime('%Y-%m-%d')}_Ver{version}"
-        base_directory = Path('/Users/jerry/Desktop/root/Root file/results_by_date') 
-        new_folder = base_directory / folder_name
-        new_folder.mkdir(parents=True, exist_ok=True)
+        # folder_name = f"{datetime.today().strftime('%Y-%m-%d')}_Ver{version}"
+        # base_directory = Path('/Users/jerry/Desktop/root/Root file/results_by_date') 
+        # new_folder = base_directory / folder_name
+        # new_folder.mkdir(parents=True, exist_ok=True)
         output_path = new_folder / f"{hist_senario[hist_slice-1]}{Eava[avaE]} aUNSCALED.png"
         # Update and display the canvas
         canvas1.Modified()
